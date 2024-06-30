@@ -6,7 +6,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 
-with open('credentials.json', 'r') as file:
+with open('../credentials.json', 'r') as file:
     credentials = json.load(file)
 
 TELEGRAM_BOT_TOKEN = credentials["bot_token"]
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     try:
         while True:
-            time.sleep(1)
+            time.sleep(0.001)
     except KeyboardInterrupt:
         print("Im done")
         bot.send_message(TELEGRAM_CHAT_ID, "Im done")
