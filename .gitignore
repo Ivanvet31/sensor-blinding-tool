@@ -1,0 +1,7 @@
+credentials.json
+ids.py
+phish.py
+text.txt
+.venv/*
+.venv
+.venv/
