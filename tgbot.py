@@ -11,8 +11,8 @@ with open('../credentials.json', 'r') as file:
 
 TELEGRAM_BOT_TOKEN = credentials["bot_token"]
 TELEGRAM_CHAT_ID = '-4206118494'
-# LOG_FILE = '/var/log/suricata/fast.log'
-LOG_FILE = './text.txt'
+LOG_FILE = '/var/log/suricata/fast.log'
+# LOG_FILE = './text.txt'
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
