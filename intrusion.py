@@ -1,21 +1,21 @@
 from scapy.all import *
 
-# Function to send TCP packet
+
 def send_tcp_packet(dst_ip, dport, payload):
     packet = IP(dst=dst_ip) / TCP(dport=dport, sport=RandShort(), flags="S") / Raw(load=payload)
     send(packet, verbose=0)
 
-# Function to send UDP packet
+
 def send_udp_packet(dst_ip, dport, payload):
     packet = IP(dst=dst_ip) / UDP(dport=dport) / Raw(load=payload)
     send(packet, verbose=0)
 
-# Function to send DNS packet
+
 def send_dns_packet(dst_ip, dport, query):
     packet = IP(dst=dst_ip) / UDP(dport=dport) / DNS(rd=1, qd=DNSQR(qname=query))
     send(packet, verbose=0)
 
-# Define the Snort rules as a list of dictionaries
+
 rules = [
     {"msg": "MALWARE-BACKDOOR - Dagger_1.4.0", "proto": "tcp", "dport": 2589, "payload": b"\x02\x00\x00\x06\x00\x00\x00\x44\x72\x69\x76\x65\x73\x24\x00"},
     {"msg": "MALWARE-BACKDOOR QAZ Worm Client Login access", "proto": "tcp", "dport": 7597, "payload": b"qazwsx.hsq"},
@@ -40,10 +40,9 @@ rules = [
     {"msg": "MALWARE-BACKDOOR MISC rewt attempt", "proto": "tcp", "dport": 23, "payload": b"rewt"},
 ]
 
-# Target IP where packets will be sent
-target_ip = "109.71.242.119"  # Replace with your actual target IP
 
-# Sending packets according to rules
+target_ip = "109.71.242.119"
+
 for rule in rules:
     if rule["proto"] == "tcp":
         if isinstance(rule["dport"], str) and ":" in rule["dport"]:
