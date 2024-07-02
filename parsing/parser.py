@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 
-from os import replace
 import sys
 import random
 import re
@@ -89,7 +88,7 @@ def generate_http(rules) -> str:
             http_header += f"{generate(10)}: {generate(20)}\n"
 
     http_header += f"Content-length: {len(http_client_body)}\n"
-    return f"{http_method} {http_uri} HTTP/1.1\n{http_header}\n{http_client_body}"
+    return f"{http_method} {http_uri} HTTP/1.1\n{http_header}\n{http_client_body}\n"
 
 packet_counter = 0
 packet_dir = "../packets/"
@@ -160,7 +159,7 @@ if __name__ == "__main__":
                     case "any":
                         ports = "[1000,2000,3000,4000]"
                     case _:
-                        if ports.isnumeric():
+                        if splat[6].isdigit():
                             ports = splat[6]
                         else:
                             continue
@@ -242,6 +241,7 @@ if __name__ == "__main__":
                         prot_id = 2
                     case "icmp":
                         prot_id = 3
+                        continue
                     case _:
                         continue
 
