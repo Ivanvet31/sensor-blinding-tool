@@ -2,7 +2,6 @@
 import socket
 import sys
 from threading import Thread
-import time
 
 ip_addr = str(sys.argv[1])
 
