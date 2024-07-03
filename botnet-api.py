@@ -16,8 +16,8 @@ allowed_ips = {"ai-poly.online", "botnet.ai-poly.online", "109.71.242.119", "127
 
 
 class AddressRequest(BaseModel):
-    address: str,
-    api_pass
+    address: str
+    api_pass: str
 
 
 @app.get("/")
