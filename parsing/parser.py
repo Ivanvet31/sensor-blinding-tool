@@ -14,7 +14,9 @@ def generate(len: int) -> str:
 
 def generate_match(opt_list) -> str:
     packet_str = ""
+    
     max_length = 10000000000000
+
     for opt in opt_list:
         pcre = opt.get("pcre", 0)
         if pcre:
@@ -119,7 +121,6 @@ packet_counter = 0
 packet_dir = "../packets/"
 #packets = "packets_1.bin"
 packets = "packets.bin"
-output = open(packet_dir + packets, "wb")
 
 def write_packet(protocol : int, port : int, packet : bytes):
     global packets, output, packet_counter
@@ -296,7 +297,4 @@ if __name__ == "__main__":
                 else:
                     continue
 
-
     print(packet_counter)
-
-
