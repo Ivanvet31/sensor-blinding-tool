@@ -59,15 +59,14 @@ rules = [
 target_ip = "109.71.242.119"
 
 for rule in rules:
-    for i in range(1_000_000_000):
-        if rule["proto"] == "tcp":
-            if isinstance(rule["dport"], str) and ":" in rule["dport"]:
-                dport_start, dport_end = map(int, rule["dport"].split(":"))
-                for port in range(dport_start, dport_end + 1):
-                    send_tcp_packet(target_ip, port, rule["payload"])
-            else:
-                send_tcp_packet(target_ip, rule["dport"], rule["payload"])
-        elif rule["proto"] == "udp":
-            send_udp_packet(target_ip, rule["dport"], rule["payload"])
+    if rule["proto"] == "tcp":
+        if isinstance(rule["dport"], str) and ":" in rule["dport"]:
+            dport_start, dport_end = map(int, rule["dport"].split(":"))
+            for port in range(dport_start, dport_end + 1):
+                send_tcp_packet(target_ip, port, rule["payload"])
+        else:
+            send_tcp_packet(target_ip, rule["dport"], rule["payload"])
+    elif rule["proto"] == "udp":
+        send_udp_packet(target_ip, rule["dport"], rule["payload"])
 
 print("All packets sent.")

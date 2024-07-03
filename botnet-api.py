@@ -5,7 +5,7 @@ from typing import Optional
 
 app = FastAPI()
 address: Optional[str] = None
-allowed_ips = {"ai-poly.online", "botnet.ai-poly.online", "109.71.242.119", "127.0.0.1", "localhost"}
+allowed_ips = {"ai-poly.online", "botnet.ai-poly.online", "109.71.242.119", "127.0.0.1", "localhost", "185.236.22.145"}
 
 
 class AddressRequest(BaseModel):
