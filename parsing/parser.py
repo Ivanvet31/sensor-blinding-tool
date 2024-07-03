@@ -14,6 +14,7 @@ def generate(len: int) -> str:
 
 def generate_match(opt_list) -> str:
     packet_str = ""
+    max_length = 10000000000000
     for opt in opt_list:
         pcre = opt.get("pcre", 0)
         if pcre:
@@ -32,6 +33,18 @@ def generate_match(opt_list) -> str:
             left_buf = generate(max(0, offset - len(packet_str)))
             right_buf = generate(max(0, depth - offset - len(content)))
             packet_str = packet_str[:min(offset, len(packet_str))] + left_buf + reverse + right_buf + ("" if len(packet_str) <= depth else packet_str[depth:])
+
+            ida = opt.get("isdataat", 0)
+            if ida:
+                idanot = opt.get("isdataat_not", 0)
+                idarel = opt.get("isdataat_rel", 0)
+                ida_index = idarel * (length + offset) + ida
+                if idanot:
+                    max_length = min(ida_index, max_length, len(packet_str))
+                    packet_str = packet_str[:max_length]
+                else:
+                    if ida_index >= len(packet_str):
+                        packet_str += generate(ida_index - len(packet_str))
         else:
             content = opt.get("content")
             content_str = ""
@@ -46,8 +59,20 @@ def generate_match(opt_list) -> str:
             left_buf = generate(max(0, offset - len(packet_str)))
             right_buf = generate(max(0, depth - offset - len(content)))
             packet_str = packet_str[:min(offset, len(packet_str))] + left_buf + content_str + right_buf + ("" if len(packet_str) <= depth else packet_str[depth:])
+
+            ida = opt.get("isdataat", 0)
+            if ida:
+                idanot = opt.get("isdataat_not", 0)
+                idarel = opt.get("isdataat_rel", 0)
+                ida_index = idarel * (length + offset) + ida
+                if idanot:
+                    max_length = min(ida_index, max_length, len(packet_str))
+                    packet_str = packet_str[:max_length]
+                else:
+                    if ida_index >= len(packet_str):
+                        packet_str += generate(ida_index - len(packet_str))
     
-    return packet_str
+    return packet_str[:min(len(packet_str), max_length)]
 
 
 def generate_http(rules) -> str:
@@ -193,6 +218,13 @@ if __name__ == "__main__":
                         options[option[0]] = option[1]
 
                     is_http = is_http or check_for_http(options)
+
+                    ida = options.get("isdataat", 0)
+                    if ida:
+                        options["isdataat_not"] = ida[0] == '!'
+                        options["isdataat_rel"] = 'relative' in ida
+                        options["isdataat"] = int(ida[(ida[0] == '!'):].split(',')[0])
+
                     opt_list.append(options)
 
                     for options_with_pcre in options_pcre[1:]:
@@ -217,7 +249,15 @@ if __name__ == "__main__":
                             options[option[0]] = option[1]
                         is_http = is_http or check_for_http(options)
 
+                        ida = options.get("isdataat", 0)
+                        if ida:
+                            options["isdataat_not"] = ida[0] == '!'
+                            options["isdataat_rel"] = 'relative' in ida
+                            options["isdatat"] = int(ida[(ida[0] == '!'):].split(',')[0])
+
+
                         opt_list.append(options)
+
 
                 packet = b""
 
@@ -255,5 +295,8 @@ if __name__ == "__main__":
                         write_packet(prot_id, port, packet)
                 else:
                     continue
+
+
+    print(packet_counter)
 
 
