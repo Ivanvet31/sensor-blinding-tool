@@ -16,7 +16,8 @@ allowed_ips = {"ai-poly.online", "botnet.ai-poly.online", "109.71.242.119", "127
 
 
 class AddressRequest(BaseModel):
-    address: str
+    address: str,
+    api_pass
 
 
 @app.get("/")
@@ -34,7 +35,6 @@ async def get_address():
 
 @app.post("/address", response_model=str)
 async def set_address(address_req: AddressRequest, request: Request):
-    client_host = request.client.host
     if address_req.password != API_PASS:
         raise HTTPException(status_code=403, detail="Access denied")
     
