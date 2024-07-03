@@ -4,7 +4,7 @@ import json
 from typing import Optional
 
 
-with open('../credentials.json', 'r') as file:
+with open('credentials.json', 'r') as file:
     credentials = json.load(file)
 
 API_PASS = credentials["API_pass"]
