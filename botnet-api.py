@@ -35,7 +35,7 @@ async def get_address():
 
 @app.post("/address", response_model=str)
 async def set_address(address_req: AddressRequest, request: Request):
-    if address_req.password != API_PASS:
+    if address_req.api_pass != API_PASS:
         raise HTTPException(status_code=403, detail="Access denied")
     
     global address
