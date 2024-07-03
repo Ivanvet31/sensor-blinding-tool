@@ -1,6 +1,13 @@
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
+import json
 from typing import Optional
+
+
+with open('../credentials.json', 'r') as file:
+    credentials = json.load(file)
+
+API_PASS = credentials["API_pass"]
 
 
 app = FastAPI()
@@ -28,7 +35,7 @@ async def get_address():
 @app.post("/address", response_model=str)
 async def set_address(address_req: AddressRequest, request: Request):
     client_host = request.client.host
-    if client_host not in allowed_ips:
+    if address_req.password != API_PASS:
         raise HTTPException(status_code=403, detail="Access denied")
     
     global address
