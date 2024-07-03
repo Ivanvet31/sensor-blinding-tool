@@ -12,6 +12,11 @@ class AddressRequest(BaseModel):
     address: str
 
 
+@app.get("/")
+async def root():
+    return {"message": "Your botnet is ready"}
+
+
 @app.get("/address", response_model=str)
 async def get_address():
     if address:
