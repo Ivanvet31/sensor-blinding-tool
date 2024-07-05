@@ -6,7 +6,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 
-with open('../credentials.json', 'r') as file:
+with open('credentials.json', 'r') as file:
     credentials = json.load(file)
 
 TELEGRAM_BOT_TOKEN = credentials["bot_token"]
