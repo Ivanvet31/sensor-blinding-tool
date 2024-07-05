@@ -56,6 +56,7 @@ for i in range(0, int(sys.argv[3])):
             thread = Thread(target = send, args = (sock_fd, ip_addr, port, packet_counter, t))
             thread.start()
             threads.append(thread)
+            time.sleep(0.08)
             t = int.from_bytes(file_stream.read(1))
             packet_counter += 1
 
