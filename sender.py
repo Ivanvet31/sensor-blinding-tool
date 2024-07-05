@@ -4,7 +4,6 @@ import sys
 import time
 from threading import Thread
 
-ip_addr = str(sys.argv[1])
 
 conmap = [0 for _ in range(65536)]
 threshhold = 10
@@ -13,6 +12,8 @@ sock_count = 0
 sock_limit = 50000
 
 socket.setdefaulttimeout(5)
+
+packet = b''
 
 def send(sock_fd, ip_addr, port, p_num, t):
     global sock_count
@@ -38,12 +39,17 @@ def send(sock_fd, ip_addr, port, p_num, t):
         sock_fd.close()
         sock_count -= 1
 
-threads = []
+def send_packages(ip_addr, sleep_time, file_path):
+    # ip_addr = str(sys.argv[1])
 
-packet_counter = 0
+    socket.setdefaulttimeout(5)
+    threads = []
+    packet_counter = 0
+    global sock_count
 
-for i in range(0, int(sys.argv[3])):
-    with open(sys.argv[2], "rb") as file_stream:
+    # for i in range(0, int(sys.argv[3])):
+    # with open(sys.argv[2], "rb") as file_stream:
+    with open(file_path, "rb") as file_stream:
         t = int.from_bytes(file_stream.read(1))
         while t:
             port = int.from_bytes(file_stream.read(2))
@@ -57,11 +63,11 @@ for i in range(0, int(sys.argv[3])):
             thread = Thread(target = send, args = (sock_fd, ip_addr, port, packet_counter, t))
             thread.start()
             threads.append(thread)
-            time.sleep(sys.argv[4])
+            # time.sleep(sys.argv[4])
+            time.sleep(sleep_time)
             t = int.from_bytes(file_stream.read(1))
             packet_counter += 1
 
 
-for thread in threads:
-    thread.join()
-
+    for thread in threads:
+        thread.join()
