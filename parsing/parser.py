@@ -3,298 +3,188 @@
 import sys
 import random
 import re
-import string
-from xeger import Xeger
 
-def generate(len: int) -> str:
-    res = ""
-    for _ in range(len):
-        res += random.choice(string.ascii_letters)
-    return res
+DEBUG = 1
 
-def generate_match(opt_list) -> str:
-    packet_str = ""
-    
-    max_length = 10000000000000
+vars = {}
 
-    for opt in opt_list:
-        pcre = opt.get("pcre", 0)
-        if pcre:
-            content = opt.get("content")
-            if len(content) > 300: continue
-            offset = int(opt.get("offset", 0))
-            depth = int(opt.get("depth", offset + len(content)))
-            length = int(opt.get("length", len(content)))
+output = open('../packets/packets.bin', 'wb')
 
-            xeg = Xeger(limit=length)
-            reverse = ""
-            if opt.get("not"):
-                reverse = xeg.xeger(f"^(?!({content})).*")
-            else:
-                reverse = xeg.xeger(content)
-            left_buf = generate(max(0, offset - len(packet_str)))
-            right_buf = generate(max(0, depth - offset - len(content)))
-            packet_str = packet_str[:min(offset, len(packet_str))] + left_buf + reverse + right_buf + ("" if len(packet_str) <= depth else packet_str[depth:])
+def get_variables(file_str : str):
+    global vars
 
-            ida = opt.get("isdataat", 0)
-            if ida:
-                idanot = opt.get("isdataat_not", 0)
-                idarel = opt.get("isdataat_rel", 0)
-                ida_index = idarel * (length + offset) + ida
-                if idanot:
-                    max_length = min(ida_index, max_length, len(packet_str))
-                    packet_str = packet_str[:max_length]
+    with open(file_str, 'r') as file:
+        lines = file.readlines()
+
+        for line in lines:
+            m = re.match(r"^([a-zA-Z]*)var\s+(\w+)\s+(.*)", line)
+            if m:
+                key = m.group(1)
+                name = m.group(2)
+                value = m.group(3)
+
+                if value[0] == '$':
+                    vars[name] = [vars[value[1:]][0], key]
                 else:
-                    if ida_index >= len(packet_str):
-                        packet_str += generate(ida_index - len(packet_str))
-        else:
-            content = opt.get("content")
-            content_str = ""
-            for i, chunk in enumerate(content.split('|')):
-                if i % 2:
-                    content_str += ''.join(list(map(lambda x: chr(int(x, 16)), chunk.split())))
-                else:
-                    content_str += chunk
-            offset = int(opt.get("offset", 0))
-            depth = int(opt.get("depth", offset + len(content_str)))
-            length = int(opt.get("length", len(content_str)))
-            left_buf = generate(max(0, offset - len(packet_str)))
-            right_buf = generate(max(0, depth - offset - len(content)))
-            packet_str = packet_str[:min(offset, len(packet_str))] + left_buf + content_str + right_buf + ("" if len(packet_str) <= depth else packet_str[depth:])
+                    vars[name] = [value, key]
 
-            ida = opt.get("isdataat", 0)
-            if ida:
-                idanot = opt.get("isdataat_not", 0)
-                idarel = opt.get("isdataat_rel", 0)
-                ida_index = idarel * (length + offset) + ida
-                if idanot:
-                    max_length = min(ida_index, max_length, len(packet_str))
-                    packet_str = packet_str[:max_length]
-                else:
-                    if ida_index >= len(packet_str):
-                        packet_str += generate(ida_index - len(packet_str))
-    
-    return packet_str[:min(len(packet_str), max_length)]
+def write(output, protocol, port, packet):
+    if not output: return
 
-
-def generate_http(rules) -> str:
-    http_method = ""
-    http_uri = ""
-    http_header = ""
-    http_client_body = ""
-
-    uri_opts = list(filter(lambda x: bool(x.get("http_uri", 0)), rules))
-    method_opts = list(filter(lambda x: bool(x.get("http_method", 0)), rules))
-    header_opts = list(filter(lambda x: bool(x.get("http_header", 0)), rules))
-    client_body_opts = list(filter(lambda x: bool(x.get("http_client_body", 0)), rules))
-
-    for rule in rules:
-        if rule.get("http_uri", 0):
-            uri_opts.append(rule)
-        elif rule.get("http_method", 0):
-            method_opts.append(rule)
-        elif rule.get("http_header", 0):
-            header_opts.append(rule)
-        elif rule.get("http_client_body", 0):
-            client_body_opts.append(rule)
-
-    http_uri = generate_match(uri_opts)
-    http_method = generate_match(method_opts)
-    http_header = generate_match(header_opts)
-    http_client_body = generate_match(client_body_opts)
-
-    if not http_uri:
-        http_uri = f"/{generate(3)}/{generate(5)}/{generate(4)}"
-    if not http_method:
-        http_method = "GET"
-    if not http_client_body:
-        http_client_body = generate(100)
-    if not http_header:
-        http_header = f"Host: localhost:8000\n"
-        for _ in range(10):
-            http_header += f"{generate(10)}: {generate(20)}\n"
-
-    http_header += f"Content-length: {len(http_client_body)}\n"
-    return f"{http_method} {http_uri} HTTP/1.1\n{http_header}\n{http_client_body}\n"
-
-packet_counter = 0
-packet_dir = "../packets/"
-#packets = "packets_1.bin"
-packets = "packets.bin"
-
-def write_packet(protocol : int, port : int, packet : bytes):
-    global packets, output, packet_counter
-    #file_num = int(packets[8:-4])
-    #if packet_counter > (file_num * 1000):
-    #    packets = f"packets_{file_num + 1}.bin"
-    #    output.close()
-    #    output = open(packet_dir + packets, "wb")
-    #    write_packet(protocol, port, packet)
-    #    return
-
-    if not output:
-        return
-
-    data = int.to_bytes(protocol) + int.to_bytes(port % 65536, 2) + int.to_bytes(len(packet), 4) + packet
+    data = int.to_bytes(protocol, 1) + int.to_bytes(port, 2) + int.to_bytes(len(packet), 4) + packet
 
     output.write(data)
 
-def colon_split(s):
-    ind = s.find(':')
-    if ind == -1: return [s]
-    return [ s[:ind], s[ind + 1:] ]
+def parse_content(content : str):
+    m = re.search(r"^([^\|]*)\|([^\|]*)\|(.*)", content)
+    if m is None: return bytes(content, 'ascii')
+    
+    hexed = b''.join(list(map(lambda x: int.to_bytes(int(x, 16), 1), m.group(2).split())))
 
-def check_for_http(rule):
-    if rule.get("http_uri", 0): return True
-    if rule.get("http_method", 0): return True
-    if rule.get("http_header", 0): return True
-    if rule.get("http_client", 0): return True
-    return False
-        
-if __name__ == "__main__":
-    for file_name in sys.argv[1:]:
-        print(f"Parsing file {file_name}")
-        with open(file_name, "r") as rules:
-            for line in rules.readlines():
-                splat = line.split()
-                if len(line) < 2 or len(splat) < 7: continue
-                protocol = splat[1]
-
-                if splat[0] != "alert": 
-                    continue
-
-                if splat[2] != "$EXTERNAL_NET" and splat[2] != "any":
-                    continue
-
-                is_http = False
-                
-                
-                ports = ""
-                match splat[6]:
-                    case "$HTTP_PORTS":
-                        ports = "[36,80,81,82,83,84,85,86,87,88,89,90,311,323,383,443,444,555,591,593,623,631,664,801,808,818,901,972,1158,1220,1270,1414,1533,1581,1719,1720,1741,1801,1812,1830,1942,2231,2301,2375,2381,2578,2809,2869,2980,3000,3029,3037,3057,3128,3323,3443,3702,4000,4343,4444,4592,4848,5000,5054,5060,5061,5117,5222,5250,5416,5443,5450,5480,5555,5600,5814,5894,5984,5985,5986,6060,6080,6173,6988,7000,7001,7005,7070,7071,7080,7144,7145,7180,7181,7510,7770,7777,7778,7779,8000,8001,8008,8014,8015,8020,8028,8040,8080,8081,8082,8085,8088,8090,8095,8118,8123,8161,8180,8181,8182,8222,8243,8280,8300,8333,8344,8393,8400,8443,8484,8500,8509,8511,8694,8787,8800,8848,8852,8880,8888,8899,8983,9000,9001,9002,9050,9060,9080,9090,9091,9111,9200,9201,9290,9443,9447,9502,9700,9710,9788,9830,9850,9990,9999,10000,10080,10100,10250,10255,10297,10443,11371,12601,13014,14592,15489,16000,16992,16993,16994,16995,17000,18081,19980,20000,29991,30007,30018,30888,33300,34412,34443,34444,36099,37215,40007,41080,44449,49152,49153,50000,50002,50452,51423,53331,54444,55252,55555,56712]"
-                    case "$SSH_PORTS":
-                        ports = "22"
-                    case "$ORACLE_PORTS":
-                        ports = "1024"
-                    case "$FILE_DATA_PORTS":
-                        ports = "36"
-                        ports = "[36,80,81,82,83,84,85,86,87,88,89,90,311,323,383,443,444,555,591,593,623,631,664,801,808,818,901,972,1158,1220,1270,1414,1533,1581,1719,1720,1741,1801,1812,1830,1942,2231,2301,2375,2381,2578,2809,2869,2980,3000,3029,3037,3057,3128,3323,3443,3702,4000,4343,4444,4592,4848,5000,5054,5060,5061,5117,5222,5250,5416,5443,5450,5480,5555,5600,5814,5894,5984,5985,5986,6060,6080,6173,6988,7000,7001,7005,7070,7071,7080,7144,7145,7180,7181,7510,7770,7777,7778,7779,8000,8001,8008,8014,8015,8020,8028,8040,8080,8081,8082,8085,8088,8090,8095,8118,8123,8161,8180,8181,8182,8222,8243,8280,8300,8333,8344,8393,8400,8443,8484,8500,8509,8511,8694,8787,8800,8848,8852,8880,8888,8899,8983,9000,9001,9002,9050,9060,9080,9090,9091,9111,9200,9201,9290,9443,9447,9502,9700,9710,9788,9830,9850,9990,9999,10000,10080,10100,10250,10255,10297,10443,11371,12601,13014,14592,15489,16000,16992,16993,16994,16995,17000,18081,19980,20000,29991,30007,30018,30888,33300,34412,34443,34444,36099,37215,40007,41080,44449,49152,49153,50000,50002,50452,51423,53331,54444,55252,55555,56712,110,143]"
-                    case "$SIP_PORTS":
-                        ports = "[5060,5061,5600]"
-                    case "any":
-                        ports = "[1000,2000,3000,4000]"
-                    case _:
-                        if splat[6].isdigit():
-                            ports = splat[6]
-                        else:
-                            continue
+    return bytes(m.group(1), 'ascii') + hexed + parse_content(m.group(3))
 
 
-                opt_list = []
-                option_string = line[line.find("(") + 1:line.rfind(")") - 1]
+def content_generate(contents, is_http, cont_str, opt_str):
+    opts = {}
 
-                option_list = re.split("content:", option_string)[1:]
+    opt_match = re.findall(r'(\w+):?([\w,-]*);', opt_str)
 
-                for opt_line in option_list:
-                    options_pcre = opt_line.split("pcre:")
+    if opt_match is None: return
+    
+    for opt in opt_match:
+        opt_0 = re.sub(r'http_raw_?', r'http_', opt[0])
+        opts[opt_0] = 1 if opt[1] == '' else opt[1]
+    
+    
+    if not is_http:
+        contents.append(b'A' * int(opts.get('offset', 0)) + parse_content(cont_str))
+        return
 
-                    options_splat = options_pcre[0].split("; ")
-                    option_pairs = list(map(colon_split, options_splat[1:]))
+    if opts.get('http_method', 0):
+        if not contents.get('method', 0): contents['method'] = b''
+        contents['method'] += b'A' * int(opts.get('offset', 0)) + parse_content(cont_str)
+    if opts.get('http_uri', 0):
+        if not contents.get('uri', 0): contents['uri'] = b''
+        contents['uri'] += b'A' * int(opts.get('offset', 0)) + parse_content(cont_str)
+    if opts.get('http_header', 0):
+        if not contents.get('header', 0): contents['header'] = b''
+        contents['header'] += b'A' * int(opts.get('offset', 0)) + parse_content(cont_str)
+    if opts.get('http_cookie', 0):
+        if not contents.get('cookie', 0): contents['cookie'] = b''
+        contents['cookie'] += b'A' * int(opts.get('offset', 0)) + parse_content(cont_str) + b';'
+    if opts.get('http_client_body', 0):
+        if not contents.get('body', 0): contents['body'] = b''
+        contents['body'] += b'A' * int(opts.get('offset', 0)) + parse_content(cont_str)
 
-                    options = {}
-                    if option_pairs[0][0] == '!':
-                        options['content'] = options_splat[0][2:-1]
-                        options['not'] = 1
+
+if __name__ == '__main__':
+
+    finputs = sys.argv[2:]
+    foutput = '../packets/packets.bin'
+
+    get_variables(sys.argv[1])
+
+    for finput in finputs:
+        print('Parsing', finput)
+        with open(finput, 'r') as rule_file:
+            rules = rule_file.readlines()
+            for rule in rules:
+                try:
+
+                    rule_match : re.Match | None = re.match(r"^#(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(->|<>|<-)\s+(\S+)\s+(\S+)\s+(.*)$", rule)
+
+                    if rule_match is None:
+                        continue
+
+                    logtype = rule_match.group(1)
+                    proto = rule_match.group(2)
+                    src = rule_match.group(3)
+                    src_port = rule_match.group(4)
+                    dir = rule_match.group(5)
+                    dst = rule_match.group(6)
+                    dst_port = rule_match.group(7)
+                    options = rule_match.group(8)
+
+                    options = re.sub(r'nocase;', r'', options)
+
+                    dsize_match = re.search(r'dsize\s*:\s*([^;]+);', options)
+                    dsize = ''
+                    if not dsize_match is None:
+                        dsize = dsize_match.group(1)
+
+                    content_pattern = re.compile(r'content\s*:\s*"([^"]+)";(.*?)(content\s*:.*)')
+
+                    content_match = content_pattern.search(options)
+
+                    is_http = 'http' in dst.lower() or 'http' in dst_port.lower()
+
+                    if is_http:
+                        contents = {'version' : b'HTTP/1.1'}
                     else:
-                        options['content'] = options_splat[0][1:-1]
-                        options['not'] = 0
-                    options["pcre"] = 0
+                        contents = []
 
-                    for option in option_pairs[1::]:
-                        if len(option) == 1:
-                            option[0] = option[0].replace("raw_", "")
-                            options[option[0]] = 1
-                            continue
-                        options[option[0]] = option[1]
+                    
+                    while not content_match is None:
+                        content_generate(contents, is_http, content_match.group(1), content_match.group(2))
+                        options = content_match.group(3)
+                        content_match = content_pattern.search(options)
 
-                    is_http = is_http or check_for_http(options)
+                    cont = re.search(r'content\s*:"([^"]+)";(.*)', options)
+                    if cont:
+                        content_generate(contents, is_http, cont.group(1), cont.group(2))
 
-                    ida = options.get("isdataat", 0)
-                    if ida:
-                        options["isdataat_not"] = ida[0] == '!'
-                        options["isdataat_rel"] = 'relative' in ida
-                        options["isdataat"] = int(ida[(ida[0] == '!'):].split(',')[0])
+                    payload = ''
+                    if is_http:
+                        uri = contents.get('uri', b'/dir ')
+                        if chr(uri[0]) != '/': uri = b'/' + uri
+                        cl_body = contents.get('body', b'A' * 10)
+                        if len(contents.keys()) == 1: continue
+                        lst = [
+                                contents.get('method', b'GET') + b' ',
+                                uri + b' ',
+                                contents.get('version') + b'\n',
+                                b'Host: something.com\n',
+                                contents.get('header', b'Something: Something') + b'\nContent-length: ' + bytes(str(len(cl_body)), 'ascii'),
+                                contents.get('cookie', b'') + b'\n\n',
+                                cl_body
+                            ]
 
-                    opt_list.append(options)
+                        payload = b''.join(lst)
+                    else:
+                        payload = b''.join(contents)
+                    print(payload)
 
-                    for options_with_pcre in options_pcre[1:]:
+                    if dsize:
+                        dmatch = re.match(r'(\D?)(\d+)', dsize)
+                        if not dmatch is None:
+                            sign = dmatch.group(1)
+                            padlen = int(dmatch.group(2)) - len(payload)
+                            padlen += 1 if sign == '>' else -1 if sign == '<' else 0
+                            payload += b'B' * padlen
 
-                        owp_splat = options_with_pcre.split("; ")
-                        option_pairs = list(map(colon_split, owp_splat[1:]))
+                    var = vars.get(dst_port[(dst_port[0] == '$'):], 0)
+                    if var:
+                        dst_port = var[0]
 
-                        options = {}
-                        if option_pairs[0][0] == '!':
-                            options['content'] = owp_splat[0][2:-1]
-                            options['not'] = 1
-                        else:
-                            options['content'] = owp_splat[0][1:-1]
-                            options['not'] = 0
-                        options["pcre"] = 1
+                    port_match = re.findall(r'\[?[,]?(\d+)[:]?\]?', dst_port)
+                    if port_match != []:
+                        ports = list(map(int, port_match))
+                    else:
+                        ports = [random.randint(0, 65535)]
 
-                        for option in option_pairs[1::]:
-                            if len(option) == 1:
-                                option[0] = option[0].replace("raw_", "")
-                                options[option[0]] = 1
-                                continue
-                            options[option[0]] = option[1]
-                        is_http = is_http or check_for_http(options)
-
-                        ida = options.get("isdataat", 0)
-                        if ida:
-                            options["isdataat_not"] = ida[0] == '!'
-                            options["isdataat_rel"] = 'relative' in ida
-                            options["isdatat"] = int(ida[(ida[0] == '!'):].split(',')[0])
-
-
-                        opt_list.append(options)
-
-
-                packet = b""
-
-                pcre = 0
-
-                packet_str = ""
-                if is_http:
-                    packet_str = generate_http(opt_list)
-                else:
-                    packet_str = generate_match(opt_list)
-
-                for ch in packet_str:
-                    packet += int.to_bytes(ord(ch))
+                    protocol = 2
+                    match proto:
+                        case 'tcp':
+                            protocol = 1
+                        case 'udp':
+                            protocol = 2
+                        case 'icmp':
+                            protocol = 3
 
 
-                prot_id = 2
-                match protocol:
-                    case "tcp":
-                        prot_id = 1
-                    case "udp":
-                        prot_id = 2
-                    case "icmp":
-                        prot_id = 3
-                        continue
-                    case _:
-                        continue
-
-                if ports.isnumeric():
-                    packet_counter += 1
-                    write_packet(prot_id, int(ports), packet)
-                elif ports[0] == '[' and ports[-1] == ']':
-                    ports = list(map(int, ports[1:-1].split(',')))
                     for port in ports:
-                        packet_counter += 1
-                        write_packet(prot_id, port, packet)
-                else:
+                        write(output, protocol, port, payload)
+
+                except Exception as e:
                     continue
 
-    print(packet_counter)
